@@ -12,6 +12,7 @@
 #include "ll/api/event/server/ServerStartedEvent.h"
 #include "ll/api/event/server/ServerStoppingEvent.h"
 #include "ll/api/event/world/ServerLevelTickEvent.h"
+#include "ll/api/Versions.h"
 #include "ll/api/memory/Hook.h"
 #include "ll/api/service/Bedrock.h"
 
@@ -29,6 +30,7 @@
 #include "mc/network/MinecraftPackets.h"
 #include "mc/network/NetworkSystem.h"
 #include "mc/network/Packet.h"
+#include "mc/network/RemoteConnector.h"
 #include "mc/network/ServerNetworkHandler.h"
 #include "mc/network/VanillaServerNetworkHandler.h"
 #include "mc/network/connection/DisconnectFailReason.h"
@@ -278,9 +280,30 @@ std::string makeSkinAuthJson(SerializedSkinRef const& skinRef) {
     return out;
 }
 
+// The port the server really listens on. A dedicated server is not necessarily on
+// 19132, and a single-player world may have no remote connector at all.
+uint16_t listeningPort(NetworkSystem& network) {
+    if (auto* connector = network.mRemoteConnector.get()) {
+        if (auto port = connector->getIPv4Port()) return port;
+        if (auto port = connector->getIPv6Port()) return port;
+    }
+    return 19132;
+}
+
+// The version of the game this mod is running in, as a client reports it at login.
+std::string gameVersion() {
+    auto version = ll::getGameVersion();
+    return std::to_string(version.major) + "." + std::to_string(version.minor) + "."
+         + std::to_string(version.patch);
+}
+
 // The token is deliberately fake (no real signature); only its payload is read.
-std::string
-makeConnectionJson(GhostSession const& session, SerializedSkinRef const* skinTemplate, std::string& tokenOut) {
+std::string makeConnectionJson(
+    GhostSession const&      session,
+    SerializedSkinRef const* skinTemplate,
+    uint16_t                 serverPort,
+    std::string&             tokenOut
+) {
     std::string const header =
         R"({"alg":"ES384","x5u":"MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE8S0bHR0HhZhmwpLV4hrVPg+PvUVD8QV2gf02f3qrS+eG0iQxCW6TYP/naDQK1ACLe9FUhc6f1VJ+2iilNzwu3NuKCibXJ0pPWdBY07X3U6ckidcqhdm6UHq19eAA9c4Q"})";
 
@@ -307,8 +330,10 @@ makeConnectionJson(GhostSession const& session, SerializedSkinRef const* skinTem
     payload += R"(,"DeviceId":")" + session.uuid + R"(","SelfSignedId":")" + session.uuid + R"(",)"
              + R"("ClientRandomId":)" + std::to_string(std::hash<std::string>{}(session.xuid + "#random"))
              + R"(,"PlatformOnlineId":")" + mid + R"(","DeviceOS":4,"BuildPlatform":4,)"
-             + R"("GameVersion":"1.26.51","LanguageCode":"en_US","CurrentInputMode":1,"DefaultInputMode":1,)"
-             + R"("GuiScale":0,"ServerAddress":"127.0.0.1:19132","ThirdPartyName":")" + name + R"(")";
+             + R"("GameVersion":")" + gameVersion() + R"(","LanguageCode":"en_US",)"
+             + R"("CurrentInputMode":1,"DefaultInputMode":1,)"
+             + R"("GuiScale":0,"ServerAddress":"127.0.0.1:)" + std::to_string(serverPort)
+             + R"(","ThirdPartyName":")" + name + R"(")";
     // ConnectionRequest reads the skin from the token payload, not from the outer
     // authentication object.
     payload += skinJson;
@@ -740,7 +765,7 @@ GhostManager::LoginResult GhostManager::login(
     SerializedSkinRef defaultSkin = SerializedSkinRef::createTrustedDefaultSerializedSkin();
 
     std::string tokenString;
-    std::string blob = makeConnectionJson(*session, &defaultSkin, tokenString);
+    std::string blob = makeConnectionJson(*session, &defaultSkin, listeningPort(network), tokenString);
 
     Json::Value  authData;
     Json::Reader reader;
@@ -765,7 +790,7 @@ GhostManager::LoginResult GhostManager::login(
     );
 
     auto loginPacket                   = std::make_shared<LoginPacket>();
-    loginPacket->mClientNetworkVersion = 1001; // value captured from the 26.51 protocol
+    loginPacket->mClientNetworkVersion = ll::getNetworkProtocolVersion(); // what a matching client reports
     loginPacket->mConnectionRequest =
         std::make_unique<ConnectionRequest>(WebToken::parse(tokenString, 1u << 20), authData);
 
