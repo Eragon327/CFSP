@@ -1,5 +1,3 @@
-#ifdef LL_PLAT_S
-
 #include <winsock2.h> // must stay above the Bedrock headers
 
 #include "cfsp/ghost/GhostManager.h"
@@ -11,6 +9,7 @@
 
 #include "ll/api/event/EventBus.h"
 #include "ll/api/event/player/PlayerDisconnectEvent.h"
+#include "ll/api/event/server/ServerStartedEvent.h"
 #include "ll/api/event/server/ServerStoppingEvent.h"
 #include "ll/api/event/world/ServerLevelTickEvent.h"
 #include "ll/api/memory/Hook.h"
@@ -411,16 +410,24 @@ std::optional<MessToken> const& hostMessToken() {
     return *reinterpret_cast<std::optional<MessToken> const*>(storage);
 }
 
-// ResourcePackClientResponsePacket's default ctor is not linkable, but the payload
-// ctor is, so always build it from a payload. Dispatch must go through the
+// ResourcePackClientResponsePacket's default ctor is not linkable on either platform,
+// but the payload ctor is. On a dedicated server the payload is filled in place; on the
+// client build its default ctor is declared "prevent constructor by default", so the
+// payload has to be built from the response enum instead. Dispatch must go through the
 // game-specific callback, not through ServerNetworkHandler's base NetEventCallback.
 void sendPackResponse(ServerNetworkHandler& handler, NetworkIdentifier const& id, bool stackFinished) {
+#ifdef LL_PLAT_C
+    ResourcePackClientResponsePacketPayload payload(
+        stackFinished ? ResourcePackResponse::ResourcePackStackFinished : ResourcePackResponse::DownloadingFinished
+    );
+#else
     ResourcePackClientResponsePacketPayload payload;
     if (stackFinished) {
         payload.mResponse.get() = ResourcePackClientResponsePacketPayload::ResourcePackStackFinished{};
     } else {
         payload.mResponse.get() = ResourcePackClientResponsePacketPayload::DownloadingFinished{};
     }
+#endif
     ResourcePackClientResponsePacket pkt{std::move(payload)};
     if (auto* gameSpecific = handler.getGameSpecificNetEventCallback()) {
         static_cast<VanillaServerNetworkHandler*>(gameSpecific)->handle(id, pkt);
@@ -521,10 +528,18 @@ void GhostManager::init() {
         self.mStopping = true;
         self.mSessions.clear();
     });
+    // A client can leave and enter single-player worlds without unloading the mod, so
+    // a previous world's shutdown must not refuse logins in the next one.
+    bus.emplaceListener<ll::event::server::ServerStartedEvent>([](ll::event::server::ServerStartedEvent&) {
+        GhostManager::getInstance().mStopping = false;
+    });
     // A ghost the server removes on its own (kick, duplicate login) is reported
-    // while its player still exists, so the owner can save it one last time.
+    // while its player still exists, so the owner can save it one last time. During a
+    // shutdown that is not a loss, and saving a player once the main loop has ended
+    // crashes, so ignore those.
     bus.emplaceListener<ll::event::player::PlayerDisconnectEvent>([](ll::event::player::PlayerDisconnectEvent& ev) {
         auto& self = GhostManager::getInstance();
+        if (self.mStopping) return;
         if (auto session = self.find(ev.self())) self.lose(session, &ev.self());
     });
 }
@@ -665,7 +680,21 @@ GhostManager::LoginResult GhostManager::login(
     std::function<void(ServerPlayer&)> onReady,
     std::function<void(ServerPlayer*)> onLost
 ) {
+    // A client can leave and enter single-player worlds in one process, and the
+    // shutdown of the previous world must not refuse logins in the next one. Commands
+    // cannot run while a server is actually stopping, so a login attempt with a level
+    // loaded means we are in a live world again.
+    if (mStopping && ll::service::getLevel()) mStopping = false;
     if (mStopping) return {false, "the server is stopping"};
+#ifdef LL_PLAT_C
+    // The fake login feeds the server's own login flow, so it needs the integrated
+    // server of a single-player world. getLevel() is the cheap way to tell: it is only
+    // set while such a world is loaded (main menu and remote multiplayer have none).
+    if (!ll::service::getLevel()) {
+        log().warn("[ghost] a fake player can only be created in a single-player world");
+        return {false, "no single-player world is loaded"};
+    }
+#endif
     if (name.empty()) {
         uint64_t i = 1;
         do {
@@ -686,7 +715,10 @@ GhostManager::LoginResult GhostManager::login(
 
     auto handlerOpt = ll::service::bedrock::getServerNetworkHandler();
     auto networkOpt = ll::service::bedrock::getNetworkSystem();
-    if (!handlerOpt || !networkOpt) return {false, "server network is not ready"};
+    if (!handlerOpt || !networkOpt) {
+        log().warn("[ghost] the server network is not ready yet");
+        return {false, "server network is not ready"};
+    }
     auto& handler = *handlerOpt;
     auto& network = *networkOpt;
 
@@ -1072,5 +1104,3 @@ void GhostManager::sendInput(GhostSession& session, ServerPlayer& player) {
 }
 
 } // namespace coral_fans::cfsp::ghost
-
-#endif // LL_PLAT_S

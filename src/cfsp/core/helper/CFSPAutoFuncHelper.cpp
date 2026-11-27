@@ -11,11 +11,6 @@
 
 #ifdef LL_PLAT_C
 #include "mc/server/ServerInstance.h"
-#include "mc/server/SimulatedPlayer.h"
-using CFSPDieHookTarget = SimulatedPlayer;
-#else
-// On a dedicated server fake players are plain ServerPlayers.
-using CFSPDieHookTarget = ServerPlayer;
 #endif
 
 
@@ -42,11 +37,12 @@ bool shouldDespawn(const std::string& spname) {
     return false;
 }
 
+// Fake players are plain ServerPlayers on both builds.
 LL_TYPE_INSTANCE_HOOK(
     CFSPAutoFuncHelperHook,
     ll::memory::HookPriority::Normal,
-    CFSPDieHookTarget,
-    &CFSPDieHookTarget::$die,
+    ServerPlayer,
+    &ServerPlayer::$die,
     void,
     ActorDamageSource const& source
 ) {

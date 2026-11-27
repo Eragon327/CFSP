@@ -24,10 +24,10 @@ CFSP& CFSP::getInstance() {
 
 bool CFSP::load() {
     if (!manager::CFSPManager::getInstance().init()) return false;
-#ifdef LL_PLAT_S
-    // Fake players are real ServerPlayers behind a fake client; this drives them.
+    // Fake players are real ServerPlayers behind a fake client; this drives them. On a
+    // client build that only ever does something inside a single-player world, where
+    // the integrated server provides the login flow and the network to feed it.
     ghost::GhostManager::getInstance().init();
-#endif
     // load i18n
     if (!ll::i18n::getInstance().load(getSelf().getLangDir())) getSelf().getLogger().error("Failed to load I18n");
 
@@ -40,19 +40,21 @@ bool CFSP::load() {
             if (manager.getAutoJoin()) manager.autoJoin();
         }
     );
-#ifdef LL_PLAT_C
-    ll::event::EventBus::getInstance().emplaceListener<ll::event::server::ServerStoppingEvent>([](auto&&) {
-        manager::CFSPManager::getInstance().saveSps();
-        manager::CFSPManager::getInstance().clear();
-    });
-#else
     // The server removes every player itself while it stops; let go of the fake
-    // players so nothing touches one that is being torn down.
+    // players so nothing touches one that is being torn down. Nothing is saved here:
+    // the main loop has ended and saving a player then crashes.
     ll::event::EventBus::getInstance().emplaceListener<ll::event::server::ServerStoppingEvent>(
-        [](auto&&) { manager::CFSPManager::getInstance().onServerStopping(); },
+        [](auto&&) {
+            auto& manager = manager::CFSPManager::getInstance();
+            manager.onServerStopping();
+#ifdef LL_PLAT_C
+            // A client leaves and enters single-player worlds without unloading the
+            // mod, so the next world starts from an empty map.
+            manager.clear();
+#endif
+        },
         ll::event::EventPriority::High
     );
-#endif
     return true;
 }
 
@@ -71,9 +73,7 @@ bool CFSP::disable() { return true; }
 
 bool CFSP::unload() {
     manager::CFSPManager::getInstance().unload();
-#ifdef LL_PLAT_S
     ghost::GhostManager::getInstance().shutdown();
-#endif
     helper::CFSPHelperManager::getInstance().SimPlayerHelperHook(false);
     fix::CFSPFixManager::getInstance().cfspBugFixHook(false);
     return true;

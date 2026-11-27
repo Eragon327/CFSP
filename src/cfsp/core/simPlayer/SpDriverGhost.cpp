@@ -1,5 +1,3 @@
-#ifdef LL_PLAT_S
-
 #include "SpDriver.h"
 
 #include "cfsp/ghost/GhostActions.h"
@@ -15,7 +13,9 @@
 
 #include <utility>
 
-// Dedicated-server driver: fake players are real ServerPlayers behind a fake client.
+// Driver used by both builds: fake players are real ServerPlayers behind a fake client.
+// On a client build this only does anything inside a single-player world, where the
+// integrated server provides the login flow (see cfsp/ghost).
 namespace coral_fans::cfsp::simulated_player::driver {
 
 namespace {
@@ -128,5 +128,3 @@ void setFlying(ServerPlayer& player, bool value) {
 }
 
 } // namespace coral_fans::cfsp::simulated_player::driver
-
-#endif // LL_PLAT_S

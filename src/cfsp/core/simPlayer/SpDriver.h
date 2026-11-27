@@ -14,10 +14,12 @@ class ServerPlayer;
 // The layer between SimPlayer and whatever actually puts a fake player into the
 // world.
 //
-// On a dedicated server (LL_PLAT_S) a fake player is a real ServerPlayer that logged
-// in through a fake client connection (see cfsp/ghost), so it is indistinguishable
-// from a human player for scripts and other mods. On the client build (LL_PLAT_C)
-// it is still the vanilla SimulatedPlayer.
+// Both builds do it the same way: a real ServerPlayer logs in through the server's own
+// login flow behind a fake client connection, so it is
+// indistinguishable from a human player for scripts and other mods. A dedicated server
+// always has that server; the client build (LL_PLAT_C) only has it while a single-player
+// world -- the integrated server -- is loaded, and that is the only place a client build
+// can have fake players at all.
 namespace coral_fans::cfsp::simulated_player::driver {
 
 struct LoginCallbacks {

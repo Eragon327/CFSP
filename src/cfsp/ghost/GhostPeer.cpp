@@ -1,5 +1,3 @@
-#ifdef LL_PLAT_S
-
 #include "cfsp/ghost/GhostPeer.h"
 
 #include "cfsp/ghost/GhostSession.h"
@@ -47,5 +45,3 @@ NetworkPeer::NetworkStatus GhostPeer::getNetworkStatus() const {
 }
 
 } // namespace coral_fans::cfsp::ghost
-
-#endif // LL_PLAT_S

@@ -18,6 +18,10 @@ struct GhostSession;
 // server's own login flow. The result is a real ServerPlayer (isSimulated() ==
 // false), driven every tick by a PlayerAuthInputPacket built from GhostControl.
 //
+// Both builds use it. A dedicated server always has the server the login flow lives
+// in; a client build only has it inside a single-player world (the integrated server),
+// which login() checks with ll::service::getLevel().
+//
 // See docs/GhostPlayer-PoC.md for the technical background and constraints.
 class GhostManager {
 public:

@@ -1,5 +1,3 @@
-#ifdef LL_PLAT_S
-
 #include "cfsp/ghost/GhostActions.h"
 
 #include "cfsp/ghost/GhostSession.h"
@@ -320,5 +318,3 @@ void setSwimming(GhostSession& session, ServerPlayer& player, bool value) {
 void setFlying(GhostSession& session, ServerPlayer&, bool value) { session.control.flyChange = value; }
 
 } // namespace coral_fans::cfsp::ghost::actions
-
-#endif // LL_PLAT_S

@@ -9,20 +9,17 @@
 #ifdef LL_PLAT_C
 #include "ll/api/service/Bedrock.h"
 #include "mc/server/ServerInstance.h"
-#include "mc/server/SimulatedPlayer.h"
-using CFSPHandItemHookTarget = SimulatedPlayer;
-#else
-// On a dedicated server fake players are plain ServerPlayers.
-using CFSPHandItemHookTarget = ServerPlayer;
 #endif
 
 
 namespace coral_fans::cfsp::fix {
+// A fake player is a plain ServerPlayer on both builds; on a client build the local
+// player is one too, so the driver lookup below is what picks the fake ones out.
 LL_TYPE_INSTANCE_HOOK(
     CFSPHandItemFixHook1,
     ll::memory::HookPriority::Normal,
-    CFSPHandItemHookTarget,
-    &CFSPHandItemHookTarget::inventoryChanged,
+    ServerPlayer,
+    &ServerPlayer::inventoryChanged,
     void,
     Container&       container,
     int              slot,
@@ -48,8 +45,8 @@ LL_TYPE_INSTANCE_HOOK(
 LL_TYPE_INSTANCE_HOOK(
     CFSPHandItemFixHook2,
     ll::memory::HookPriority::Normal,
-    CFSPHandItemHookTarget,
-    &CFSPHandItemHookTarget::$setOffhandSlot,
+    ServerPlayer,
+    &ServerPlayer::$setOffhandSlot,
     void,
     ItemStack const& item
 ) {
