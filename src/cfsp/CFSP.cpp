@@ -2,6 +2,7 @@
 #include "cfsp/core/fix/CFSPFixManager.h"
 #include "cfsp/core/helper/CFSPHelperManager.h"
 #include "cfsp/core/manager/CFSPManager.h"
+#include "cfsp/ghost/GhostManager.h"
 #include "ll/api/event/EventBus.h"
 #include "ll/api/event/command/ServerCommandRegisterEvent.h"
 #include "ll/api/event/server/ServerStartedEvent.h"
@@ -23,6 +24,10 @@ CFSP& CFSP::getInstance() {
 
 bool CFSP::load() {
     if (!manager::CFSPManager::getInstance().init()) return false;
+#ifdef LL_PLAT_S
+    // Fake players are real ServerPlayers behind a fake client; this drives them.
+    ghost::GhostManager::getInstance().init();
+#endif
     // load i18n
     if (!ll::i18n::getInstance().load(getSelf().getLangDir())) getSelf().getLogger().error("Failed to load I18n");
 
@@ -40,6 +45,13 @@ bool CFSP::load() {
         manager::CFSPManager::getInstance().saveSps();
         manager::CFSPManager::getInstance().clear();
     });
+#else
+    // The server removes every player itself while it stops; let go of the fake
+    // players so nothing touches one that is being torn down.
+    ll::event::EventBus::getInstance().emplaceListener<ll::event::server::ServerStoppingEvent>(
+        [](auto&&) { manager::CFSPManager::getInstance().onServerStopping(); },
+        ll::event::EventPriority::High
+    );
 #endif
     return true;
 }
@@ -59,6 +71,9 @@ bool CFSP::disable() { return true; }
 
 bool CFSP::unload() {
     manager::CFSPManager::getInstance().unload();
+#ifdef LL_PLAT_S
+    ghost::GhostManager::getInstance().shutdown();
+#endif
     helper::CFSPHelperManager::getInstance().SimPlayerHelperHook(false);
     fix::CFSPFixManager::getInstance().cfspBugFixHook(false);
     return true;

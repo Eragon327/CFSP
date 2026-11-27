@@ -34,6 +34,11 @@ namespace coral_fans::cfsp::manager {
         return it->second->ACTION;                                                                                     \
     }
 
+// Where a fake player is, or "-" while it has no player in the world.
+static std::string spPosString(std::shared_ptr<simulated_player::SimPlayer> const& cfsp) {
+    return cfsp->mSimPlayer ? cfsp->mSimPlayer->getFeetPos().toString() : std::string("-");
+}
+
 void CFSPManager::saveSps() {
     for (auto cfsp : this->mOnlineSpMap) cfsp.second->save();
 }
@@ -47,7 +52,7 @@ std::string CFSPManager::listOnlineSp(const Player* player) {
             res += "manager.info.onlineSp"_tr(
                 cfsp.first,
                 base::utils::tryGetPlayerName(cfsp.second->mSaveData.ownerUuid),
-                cfsp.second->mSimPlayer->getFeetPos().toString()
+                spPosString(cfsp.second)
             );
         return res;
     }
@@ -58,7 +63,7 @@ std::string CFSPManager::listOnlineSp(const Player* player) {
             res += "manager.info.onlineSp"_tr(
                 cfsp.first,
                 base::utils::tryGetPlayerName(cfsp.second->mSaveData.ownerUuid),
-                cfsp.second->mSimPlayer->getFeetPos().toString()
+                spPosString(cfsp.second)
             );
             count++;
         }
@@ -75,7 +80,7 @@ std::string CFSPManager::listOfflineSp(const Player* player) {
             res += "manager.info.offlineSp"_tr(
                 cfsp.first,
                 base::utils::tryGetPlayerName(cfsp.second->mSaveData.ownerUuid),
-                cfsp.second->mSimPlayer->getFeetPos().toString()
+                spPosString(cfsp.second)
             );
         return res;
     }
@@ -86,7 +91,7 @@ std::string CFSPManager::listOfflineSp(const Player* player) {
             res += "manager.info.oflineSp"_tr(
                 cfsp.first,
                 base::utils::tryGetPlayerName(cfsp.second->mSaveData.ownerUuid),
-                cfsp.second->mSimPlayer->getFeetPos().toString()
+                spPosString(cfsp.second)
             );
             count++;
         }
@@ -142,8 +147,7 @@ base::OperateResult CFSPManager::spSpawn(Player* player, std::string const& spna
 
     ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues("cfspOnlineSp", {spname});
     ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues("cfspOfflineSp", {spname});
-    if (it->second->mSimPlayer->isDead())
-        ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues("cfspDeadSp", {it->first});
+    // "cfspDeadSp" is updated by SimPlayer::onSpawned once the player is in the world.
 
     if (auto node = mOfflineSpMap.extract(it)) {
         mOnlineSpMap.insert(std::move(node));
@@ -153,7 +157,6 @@ base::OperateResult CFSPManager::spSpawn(Player* player, std::string const& spna
 
 void CFSPManager::autoJoin() {
     std::vector<std::string> spawnlist;
-    std::vector<std::string> spawnDeadlist;
     auto                     it = this->mOfflineSpMap.begin();
     while (it != this->mOfflineSpMap.end()) {
         if (it->second->mSaveData.isOnline) {
@@ -161,7 +164,6 @@ void CFSPManager::autoJoin() {
             CFSP::getInstance().getSelf().getLogger().info(res.mInfo);
             if (res) {
                 spawnlist.emplace_back(it->first);
-                if (it->second->mSimPlayer->isDead()) spawnDeadlist.emplace_back(it->first);
                 auto current_it = it++;
                 auto node       = this->mOfflineSpMap.extract(current_it);
                 mOnlineSpMap.insert(std::move(node));
@@ -172,7 +174,6 @@ void CFSPManager::autoJoin() {
     }
     ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues("cfspOnlineSp", spawnlist);
     ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues("cfspOfflineSp", spawnlist);
-    ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues("cfspDeadSp", spawnDeadlist);
 }
 
 base::OperateResult CFSPManager::spDespawn(Player* player, std::string const& spname, bool nocheck) {
@@ -210,7 +211,7 @@ base::OperateResult CFSPManager::spDespawn(Player* player, std::string const& sp
 
 void CFSPManager::autoDespawn(std::shared_ptr<simulated_player::SimPlayer> cfsp) {
     using ll::i18n_literals::operator""_tr;
-    if (!cfsp->mSimPlayer) return;
+    if (!cfsp->mSimPlayer && !cfsp->mConnecting) return;
     cfsp->despawn();
     auto spname = cfsp->mSaveData.name;
     TextPacket::createRawMessage("manager.success.autoDespawn"_tr(spname)).sendToClients();
@@ -259,11 +260,9 @@ base::OperateResult CFSPManager::spDelete(Player* player, std::string const& spn
                 {it->second->mSaveData.name}
             );
         it->second->stop();
-        if (it->second->mSimPlayer) {
-            it->second->mSimPlayer->disconnect();
-            it->second->mSimPlayer->remove();
-            it->second->mSimPlayer->setGameTestHelper(nullptr);
-        }
+        it->second->disconnect();
+        // The server saved the player once more while it disconnected.
+        simulated_player::driver::purgeStorage(it->second->mSaveData.storageKey.value_or(""));
         try {
             std::filesystem::remove_all(
                 base::utils::getSimplayerDataDir()
@@ -281,6 +280,7 @@ base::OperateResult CFSPManager::spDelete(Player* player, std::string const& spn
             return base::OperateResult::swing("manager.fail.notEmpty"_tr(spname));
         ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues("cfspSplist", {spname});
         ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues("cfspOfflineSp", {spname});
+        simulated_player::driver::purgeStorage(it->second->mSaveData.storageKey.value_or(""));
         try {
             std::filesystem::remove_all(
                 base::utils::getSimplayerDataDir()

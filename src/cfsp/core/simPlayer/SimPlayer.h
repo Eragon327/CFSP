@@ -4,27 +4,45 @@
 #include "cfsp/base/Macros.h"
 #include "cfsp/base/OperateResult.h"
 #include "cfsp/core/simPlayer/SimPlayerPermission.h"
+#include "cfsp/core/simPlayer/SpDriver.h"
 #include "mc/deps/core/math/Vec3.h"
-#include "mc/server/SimulatedPlayer.h"
+#include "mc/server/ServerPlayer.h"
 #include <memory>
 #include <optional>
 
 
 namespace coral_fans::cfsp::simulated_player {
-class SimPlayer {
+class SimPlayer : public std::enable_shared_from_this<SimPlayer> {
 public:
-    SimPlayerSaveData  mSaveData;
-    SimulatedPlayer*   mSimPlayer  = nullptr;
+    SimPlayerSaveData mSaveData;
+    // The player in the world. Null while offline and while the login is still in
+    // progress (see mConnecting).
+    ServerPlayer*      mSimPlayer  = nullptr;
+    bool               mConnecting = false;
     unsigned long long mTaskid     = 0;
     unsigned long long mScriptid   = 0;
     bool               mShouldSave = true;
 
 public:
-    SimPlayer(SimPlayerSaveData saveData, SimulatedPlayer* sp = nullptr);
+    SimPlayer(SimPlayerSaveData saveData, ServerPlayer* sp = nullptr);
 
 public:
     bool save();
     bool loadSpNbt();
+    // Takes the player out of the world without saving anything.
+    void disconnect();
+    // The player went away behind our back; forget it. player is non-null while it
+    // is still valid and can be saved one last time.
+    void onLost(ServerPlayer* player);
+    // The server is shutting down and removes the player itself; just let go of it.
+    void onServerStopping();
+
+private:
+    void forgetUnlockedIdentity();
+    void onCreated(ServerPlayer& sp, Vec3 const& pos, DimensionType dim, bool lockUniqueId, Vec3 const& lookDir);
+    void onSpawned(ServerPlayer& sp);
+
+public:
     bool checkInvEmptyForOfflineCFSP();
 
 public:

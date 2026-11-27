@@ -1,5 +1,6 @@
 #include "SimPlayer.h"
 #include "cfsp/base/OperateResult.h"
+#include "cfsp/core/simPlayer/SpDriver.h"
 #include "ll/api/i18n/I18n.h"
 #include "ll/api/service/Bedrock.h"
 #include "mc/deps/core/utility/MCRESULT.h"
@@ -13,7 +14,7 @@ base::OperateResult SimPlayer::chat(std::string const& messasge) {
     using ll::i18n_literals::operator""_tr;
     if (!this->mSimPlayer) [[unlikely]]
         return base::OperateResult::error("manager.error.loseSimplayer"_tr());
-    this->mSimPlayer->simulateChat(messasge);
+    driver::chat(*this->mSimPlayer, messasge);
     return base::OperateResult::success("manager.success.operate"_tr());
 }
 

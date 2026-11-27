@@ -1,6 +1,7 @@
 #include "SimPlayer.h"
 #include "cfsp/base/Schedule.h"
 #include "cfsp/core/helper/CFSPHelperManager.h"
+#include "cfsp/core/simPlayer/SpDriver.h"
 #include "ll/api/i18n/I18n.h"
 #include "mc/world/actor/player/Inventory.h"
 #include "mc/world/actor/player/PlayerInventory.h"
@@ -26,7 +27,7 @@ base::OperateResult SimPlayer::attack(int times, int interval) {
     this->mTaskid = base::Schedule::getInstance().getSchedule()->add(interval, [times, this](unsigned long long t) {
         if (!this->mSimPlayer) [[unlikely]]
             return false;
-        this->mSimPlayer->simulateAttack();
+        driver::attack(*this->mSimPlayer);
         return !times || t < (unsigned long long)times - 1;
     });
     return base::OperateResult::success("manager.success.operate"_tr());
@@ -46,7 +47,7 @@ base::OperateResult SimPlayer::build(int times, int interval) {
             return false;
         const auto& hit =
             this->mSimPlayer->traceRay(5.25f, true, true, [](const class BlockSource&, const class Block& block, bool) {
-                return !block.mBlockType->mMaterial->mLiquid;
+                return !block.mBlockType->mMaterial.mLiquid;
             });
         if (hit.mType == HitResultType::Tile) {
             helper::CFSPHelperManager::getInstance().buildMutex = true;
@@ -78,7 +79,7 @@ base::OperateResult SimPlayer::interact(int times, int interval) {
     this->mTaskid = base::Schedule::getInstance().getSchedule()->add(interval, [times, this](unsigned long long t) {
         if (!this->mSimPlayer) [[unlikely]]
             return false;
-        this->mSimPlayer->simulateInteract();
+        driver::interact(*this->mSimPlayer);
         return !times || t < (unsigned long long)times - 1;
     });
     return base::OperateResult::success("manager.success.operate"_tr());
@@ -96,7 +97,7 @@ base::OperateResult SimPlayer::jump(int times, int interval) {
     this->mTaskid = base::Schedule::getInstance().getSchedule()->add(interval, [times, this](unsigned long long t) {
         if (!this->mSimPlayer) [[unlikely]]
             return false;
-        this->mSimPlayer->simulateJump();
+        driver::jump(*this->mSimPlayer);
         return !times || t < (unsigned long long)times - 1;
     });
     return base::OperateResult::success("manager.success.operate"_tr());
@@ -117,7 +118,7 @@ base::OperateResult SimPlayer::use(int _long, int times, int interval) {
             if (!this->mSimPlayer) [[unlikely]]
                 return false;
             if (!_long && t >= (unsigned long long)interval) {
-                this->mSimPlayer->simulateUseItem();
+                driver::useItem(*this->mSimPlayer);
                 return true;
             }
             auto index = t % (interval + _long);
@@ -126,7 +127,7 @@ base::OperateResult SimPlayer::use(int _long, int times, int interval) {
                 this->mSimPlayer->releaseUsingItem();
                 return (t / (interval + _long)) != (unsigned long long)times;
             }
-            if (index >= (unsigned long long)interval) this->mSimPlayer->simulateUseItem();
+            if (index >= (unsigned long long)interval) driver::useItem(*this->mSimPlayer);
             return true;
         });
     return base::OperateResult::success("manager.success.operate"_tr());
@@ -150,33 +151,27 @@ base::OperateResult SimPlayer::destroy(int _long, int times, int interval) {
                 auto hit =
                     this->mSimPlayer
                         ->traceRay(5.25f, true, true, [](const class BlockSource&, const class Block& block, bool) {
-                            return !block.mBlockType->mMaterial->mLiquid;
+                            return !block.mBlockType->mMaterial.mLiquid;
                         });
                 if (hit.mType == HitResultType::Tile)
-                    this->mSimPlayer->simulateDestroyBlock(
-                        hit.mBlock,
-                        static_cast<ScriptModuleMinecraft::ScriptFacing>(hit.mFacing)
-                    );
-                else if (this->mSimPlayer->mDestroyingBlock) this->mSimPlayer->simulateStopDestroyingBlock();
+                    driver::destroyBlock(*this->mSimPlayer, hit.mBlock, static_cast<uchar>(hit.mFacing));
+                else if (this->mSimPlayer->mDestroyingBlock) driver::stopDestroyingBlock(*this->mSimPlayer);
                 return true;
             }
             auto index = t % (interval + _long);
             if (t && !index) {
-                this->mSimPlayer->simulateStopDestroyingBlock();
+                driver::stopDestroyingBlock(*this->mSimPlayer);
                 return t / (interval + _long) != (unsigned long long)times;
             }
             if (index >= (unsigned long long)interval) {
                 auto hit =
                     this->mSimPlayer
                         ->traceRay(5.25f, true, true, [](const class BlockSource&, const class Block& block, bool) {
-                            return !block.mBlockType->mMaterial->mLiquid;
+                            return !block.mBlockType->mMaterial.mLiquid;
                         });
                 if (hit.mType == HitResultType::Tile)
-                    this->mSimPlayer->simulateDestroyBlock(
-                        hit.mBlock,
-                        static_cast<ScriptModuleMinecraft::ScriptFacing>(hit.mFacing)
-                    );
-                else if (this->mSimPlayer->mDestroyingBlock) this->mSimPlayer->simulateStopDestroyingBlock();
+                    driver::destroyBlock(*this->mSimPlayer, hit.mBlock, static_cast<uchar>(hit.mFacing));
+                else if (this->mSimPlayer->mDestroyingBlock) driver::stopDestroyingBlock(*this->mSimPlayer);
             }
             return true;
         });

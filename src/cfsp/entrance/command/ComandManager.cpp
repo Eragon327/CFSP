@@ -91,7 +91,8 @@ void ComandManager::registerCommand(CommandPermissionLevel permission) {
                 return output.error("command.fail.onlyDedicateServer"_tr());
             auto targetPlayer = self["targetPlayer"].get<ll::command::ParamKind::Player>().results(origin);
             if (targetPlayer.size() > 1) return output.error("manager.fail.targetNotSingle"_tr());
-            if (targetPlayer.data->data()[0]->isSimulatedPlayer()) return output.error("manager.fail.targetIsSp"_tr());
+            if (simulated_player::driver::isSimPlayer(*targetPlayer.data->data()[0]))
+                return output.error("manager.fail.targetIsSp"_tr());
             switch (self["type"].get<ll::command::ParamKind::Enum>().index) {
             case 0:
                 if (manager::CFSPManager::getInstance()

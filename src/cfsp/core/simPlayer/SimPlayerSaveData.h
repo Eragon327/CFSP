@@ -20,5 +20,7 @@ struct SimPlayerSaveData {
     bool                                  isOnline     = true;
     Vec3                                  lookAtOffSet = {0, 0, 0};
     GameType                              mGameType    = GameType::Survival;
+    // 服务器自身为该玩家存档所用的键；必须是optional，否则旧版本的data.json会因缺少该字段而无法加载
+    std::optional<std::string> storageKey = std::nullopt;
 };
 } // namespace coral_fans::cfsp::simulated_player

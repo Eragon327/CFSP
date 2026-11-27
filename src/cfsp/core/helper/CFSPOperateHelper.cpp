@@ -2,12 +2,12 @@
 #include "cfsp/core/manager/CFSPManager.h"
 #include "glm/fwd.hpp"
 #include "ll/api/memory/Hook.h"
-#include "mc/server/SimulatedPlayer.h"
 #include "mc/world/level/block/Block.h"
 
 #ifdef LL_PLAT_C
 #include "ll/api/service/Bedrock.h"
 #include "mc/server/ServerInstance.h"
+#include "mc/server/SimulatedPlayer.h"
 #endif
 
 namespace coral_fans::cfsp::helper {
@@ -33,6 +33,10 @@ LL_TYPE_INSTANCE_HOOK(
     return origin(player, pos, face, handSlot, hit);
 }
 
+// Keeps a SimulatedPlayer looking the way it was told to. A fake player on a
+// dedicated server reports its rotation with every input packet instead, so this is
+// only needed for the client build.
+#ifdef LL_PLAT_C
 LL_TYPE_INSTANCE_HOOK(
     CFSPLookHelperHook,
     ll::memory::HookPriority::Normal,
@@ -41,12 +45,10 @@ LL_TYPE_INSTANCE_HOOK(
     bool,
     ::BlockSource& region
 ) {
-#ifdef LL_PLAT_C
     if (auto serverInstance = ll::service::getServerInstance();
         !serverInstance
         || std::this_thread::get_id() != ll::service::getServerInstance()->mServerInstanceThread->get_id())
         return origin(region);
-#endif
     bool ori  = origin(region);
     auto cfsp = manager::CFSPManager::getInstance().tryGetCFSP(this);
     if (cfsp.has_value() && std::holds_alternative<::sim::VoidMoveIntent>(this->mSimulatedMovement->mType.get())) {
@@ -59,14 +61,19 @@ LL_TYPE_INSTANCE_HOOK(
     }
     return ori;
 }
+#endif
 
 void CFSPHelperManager::operateHelperHook(bool enabled) {
     if (enabled) {
         CFSPBuildHelperHook ::hook();
+#ifdef LL_PLAT_C
         CFSPLookHelperHook ::hook();
+#endif
     } else {
         CFSPBuildHelperHook ::unhook();
+#ifdef LL_PLAT_C
         CFSPLookHelperHook ::unhook();
+#endif
     }
 }
 } // namespace coral_fans::cfsp::helper

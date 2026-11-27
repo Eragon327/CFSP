@@ -175,12 +175,11 @@ void CFSPManager::clear() {
 
 void CFSPManager::unload() {
     for (auto& [_, sp] : this->mOnlineSpMap) {
-        if (!sp->mSimPlayer) continue;
-        sp->save();
-        sp->stop();
-        sp->mSimPlayer->disconnect();
-        sp->mSimPlayer->remove();
-        sp->mSimPlayer->setGameTestHelper(nullptr);
+        if (sp->mSimPlayer) {
+            sp->save();
+            sp->stop();
+        }
+        sp->disconnect();
     }
     clear();
     ll::command::CommandRegistrar::getInstance(false).setSoftEnumValues("cfspOnlineSp", {});
@@ -189,11 +188,26 @@ void CFSPManager::unload() {
 }
 
 std::optional<std::shared_ptr<simulated_player::SimPlayer>> CFSPManager::tryGetCFSP(Player* sp) {
-    if (!sp->isSimulatedPlayer()) return std::nullopt;
+    if (!simulated_player::driver::isSimPlayer(*sp)) return std::nullopt;
     auto it = mOnlineSpMap.find(*sp->mName);
-    if (it != mOnlineSpMap.end() && it->second->mSaveData.uniqueId == sp->getOrCreateUniqueID().rawID)
-        return it->second;
+    if (it != mOnlineSpMap.end() && it->second->mSimPlayer == sp) return it->second;
     else return std::nullopt;
+}
+
+void CFSPManager::onServerStopping() {
+    for (auto& [_, sp] : this->mOnlineSpMap) sp->onServerStopping();
+}
+
+void CFSPManager::onSpLost(std::string const& spname, ServerPlayer* player) {
+    auto it = this->mOnlineSpMap.find(spname);
+    if (it == this->mOnlineSpMap.end()) return;
+    it->second->onLost(player);
+
+    ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues("cfspOfflineSp", {spname});
+    ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues("cfspOnlineSp", {spname});
+    ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues("cfspDeadSp", {spname});
+
+    if (auto node = this->mOnlineSpMap.extract(it)) this->mOfflineSpMap.insert(std::move(node));
 }
 
 std::optional<std::shared_ptr<simulated_player::SimPlayer>> CFSPManager::tryGetCFSP(Actor* sp) {

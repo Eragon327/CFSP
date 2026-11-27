@@ -8,7 +8,7 @@
 namespace coral_fans::cfsp::manager {
 bool CFSPManager::isAllowed(const Player* player) {
     if (!player) return true;
-    if (player->isSimulatedPlayer()) [[unlikely]]
+    if (simulated_player::driver::isSimPlayer(*player)) [[unlikely]]
         return false;
     switch (this->mConfig.listType) {
     case coral_fans::cfsp::config::ListType::disabled:

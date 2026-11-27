@@ -3,7 +3,7 @@ add_rules("mode.debug", "mode.release")
 add_repositories("liteldev-repo https://github.com/LiteLDev/xmake-repo.git")
 add_repositories("coralfansdev-repo https://github.com/CoralFans-Dev/xmake-repo.git")
 
-add_requires("levilamina", {configs = {target_type = get_config("target_type")}})
+add_requires("levilamina 26.51.7", {configs = {target_type = get_config("target_type")}})
 
 add_requires(
     "levibuildscript",
@@ -39,7 +39,7 @@ target("CFSP") -- Change this to your mod name.
         )
         set_toolchains("clang-cl")
     end
-    add_defines("NOMINMAX", "UNICODE", "CFSPEXP")
+    add_defines("NOMINMAX", "UNICODE", "CFSPEXP", "_HAS_CXX23")
     add_defines("CF_VERSION=\"$(shell git describe --tags --abbrev=0 --always)\"")
     add_defines("COMMITID=\"$(shell git rev-parse HEAD)\"")
     add_files("src/**.cpp")

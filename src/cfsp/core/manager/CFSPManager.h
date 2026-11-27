@@ -77,6 +77,11 @@ private:
     uint getGroupPermissionMask(CommandPermissionLevel);
 
 public:
+    // Called when an online fake player disappeared without being despawned.
+    // player is non-null while it can still be saved.
+    void onSpLost(std::string const& spname, ServerPlayer* player);
+    // The server is shutting down and takes every player offline itself.
+    void                                                        onServerStopping();
     std::optional<std::shared_ptr<simulated_player::SimPlayer>> tryGetCFSP(Actor* sp);
     std::optional<std::shared_ptr<simulated_player::SimPlayer>> tryGetCFSP(Player* sp);
     std::optional<std::shared_ptr<simulated_player::SimPlayer>> tryGetCFSP(std::string const& name);

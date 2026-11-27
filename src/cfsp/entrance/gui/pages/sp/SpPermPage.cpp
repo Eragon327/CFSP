@@ -1,6 +1,7 @@
 #include "SpPermPage.h"
 #include "SpPermPage2.h"
 #include "cfsp/base/Utils.h"
+#include "cfsp/core/simPlayer/SpDriver.h"
 #include "ll/api/form/SimpleForm.h"
 #include "ll/api/i18n/I18n.h"
 #include "ll/api/service/Bedrock.h"
@@ -17,7 +18,7 @@ void SpPermPage::sendTo(Player& player) {
     auto                                             level = ll::service::getLevel();
     if (level.has_value())
         level->forEachPlayer([&splist, pname = player.mName.get()](Player& player) {
-            if (!player.isSimulatedPlayer() && pname != player.mName.get())
+            if (!simulated_player::driver::isSimPlayer(player) && pname != player.mName.get())
                 splist.emplace_back(std::make_pair(player.mName, player.getUuid().asString()));
             return true;
         });

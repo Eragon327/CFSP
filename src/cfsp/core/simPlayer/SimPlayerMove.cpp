@@ -1,7 +1,7 @@
 #include "SimPlayer.h"
 #include "cfsp/base/OperateResult.h"
+#include "cfsp/core/simPlayer/SpDriver.h"
 #include "ll/api/i18n/I18n.h"
-#include "mc/scripting/modules/gametest/ScriptNavigationResult.h"
 
 namespace coral_fans::cfsp::simulated_player {
 base::OperateResult SimPlayer::moveTo(Vec3 const& pos, float speed) {
@@ -12,7 +12,7 @@ base::OperateResult SimPlayer::moveTo(Vec3 const& pos, float speed) {
         return base::OperateResult::error("manager.fail.spIsDead"_tr());
     if (speed <= 0) return base::OperateResult::error("manager.fail.speedSmallerThan0"_tr());
     if (speed > 4.3f) speed = 4.3f;
-    this->mSimPlayer->simulateMoveToLocation(pos, speed, false);
+    driver::moveTo(*this->mSimPlayer, pos, speed);
     return base::OperateResult::success("manager.success.operate"_tr());
 }
 
@@ -24,7 +24,7 @@ base::OperateResult SimPlayer::navTo(Vec3 const& pos, float speed) {
         return base::OperateResult::error("manager.fail.spIsDead"_tr());
     if (speed <= 0) return base::OperateResult::error("manager.fail.speedSmallerThan0"_tr());
     if (speed > 4.3f) speed = 4.3f;
-    this->mSimPlayer->simulateNavigateToLocation(pos, speed);
+    driver::navTo(*this->mSimPlayer, pos, speed);
     return base::OperateResult::success("manager.success.operate"_tr());
 }
 

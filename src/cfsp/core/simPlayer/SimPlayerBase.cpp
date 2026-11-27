@@ -3,7 +3,7 @@
 #include "ll/api/i18n/I18n.h"
 
 namespace coral_fans::cfsp::simulated_player {
-SimPlayer::SimPlayer(SimPlayerSaveData saveData, SimulatedPlayer* sp) {
+SimPlayer::SimPlayer(SimPlayerSaveData saveData, ServerPlayer* sp) {
     this->mSaveData  = saveData;
     this->mSimPlayer = sp;
 }
