@@ -12,7 +12,7 @@ base::OperateResult SimPlayer::moveTo(Vec3 const& pos, float speed) {
         return base::OperateResult::error("manager.fail.spIsDead"_tr());
     if (speed <= 0) return base::OperateResult::error("manager.fail.speedSmallerThan0"_tr());
     if (speed > 4.3f) speed = 4.3f;
-    driver::moveTo(*this->mSimPlayer, pos, speed);
+    driver::current().moveTo(*this->mSimPlayer, pos, speed);
     return base::OperateResult::success("manager.success.operate"_tr());
 }
 
@@ -24,7 +24,7 @@ base::OperateResult SimPlayer::navTo(Vec3 const& pos, float speed) {
         return base::OperateResult::error("manager.fail.spIsDead"_tr());
     if (speed <= 0) return base::OperateResult::error("manager.fail.speedSmallerThan0"_tr());
     if (speed > 4.3f) speed = 4.3f;
-    driver::navTo(*this->mSimPlayer, pos, speed);
+    driver::current().navTo(*this->mSimPlayer, pos, speed);
     return base::OperateResult::success("manager.success.operate"_tr());
 }
 

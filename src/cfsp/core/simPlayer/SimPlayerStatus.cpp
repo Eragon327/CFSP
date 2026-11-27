@@ -10,7 +10,7 @@ base::OperateResult SimPlayer::sneaking(std::optional<bool> enable) {
         return base::OperateResult::error("manager.error.loseSimplayer"_tr());
     if (this->mSimPlayer->isDead()) [[unlikely]]
         return base::OperateResult::error("manager.fail.spIsDead"_tr());
-    driver::setSneaking(
+    driver::current().setSneaking(
         *this->mSimPlayer,
         enable.has_value() ? enable.value() : !this->mSimPlayer->getStatusFlag(ActorFlags::Sneaking)
     );
@@ -23,7 +23,7 @@ base::OperateResult SimPlayer::swimming(std::optional<bool> enable) {
         return base::OperateResult::error("manager.error.loseSimplayer"_tr());
     if (this->mSimPlayer->isDead()) [[unlikely]]
         return base::OperateResult::error("manager.fail.spIsDead"_tr());
-    driver::setSwimming(
+    driver::current().setSwimming(
         *this->mSimPlayer,
         enable.has_value() ? enable.value() : !this->mSimPlayer->getStatusFlag(ActorFlags::Swimming)
     );
@@ -41,7 +41,7 @@ base::OperateResult SimPlayer::flying(std::optional<bool> enable) {
         bool value =
             enable.has_value() ? enable.value() : !spAbilities.getAbility(AbilitiesIndex::Flying).mValue->mBoolVal;
         if (spAbilities.setAbility(AbilitiesIndex::Flying, value)) [[likely]] {
-            driver::setFlying(*this->mSimPlayer, value);
+            driver::current().setFlying(*this->mSimPlayer, value);
             return base::OperateResult::success("manager.success.operate"_tr());
         }
     }
@@ -54,7 +54,7 @@ base::OperateResult SimPlayer::sprinting(std::optional<bool> enable) {
         return base::OperateResult::error("manager.error.loseSimplayer"_tr());
     if (this->mSimPlayer->isDead()) [[unlikely]]
         return base::OperateResult::error("manager.fail.spIsDead"_tr());
-    driver::setSprinting(
+    driver::current().setSprinting(
         *this->mSimPlayer,
         enable.has_value() ? enable.value() : !this->mSimPlayer->getStatusFlag(ActorFlags::Sprinting)
     );

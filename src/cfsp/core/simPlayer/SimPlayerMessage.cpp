@@ -14,7 +14,7 @@ base::OperateResult SimPlayer::chat(std::string const& messasge) {
     using ll::i18n_literals::operator""_tr;
     if (!this->mSimPlayer) [[unlikely]]
         return base::OperateResult::error("manager.error.loseSimplayer"_tr());
-    driver::chat(*this->mSimPlayer, messasge);
+    driver::current().chat(*this->mSimPlayer, messasge);
     return base::OperateResult::success("manager.success.operate"_tr());
 }
 

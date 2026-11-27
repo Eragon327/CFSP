@@ -188,7 +188,7 @@ void CFSPManager::unload() {
 }
 
 std::optional<std::shared_ptr<simulated_player::SimPlayer>> CFSPManager::tryGetCFSP(Player* sp) {
-    if (!simulated_player::driver::isSimPlayer(*sp)) return std::nullopt;
+    if (!simulated_player::driver::current().isSimPlayer(*sp)) return std::nullopt;
     auto it = mOnlineSpMap.find(*sp->mName);
     if (it != mOnlineSpMap.end() && it->second->mSimPlayer == sp) return it->second;
     else return std::nullopt;

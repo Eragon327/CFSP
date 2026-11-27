@@ -262,7 +262,7 @@ base::OperateResult CFSPManager::spDelete(Player* player, std::string const& spn
         it->second->stop();
         it->second->disconnect();
         // The server saved the player once more while it disconnected.
-        simulated_player::driver::purgeStorage(it->second->mSaveData.storageKey.value_or(""));
+        simulated_player::driver::current().purgeStorage(it->second->mSaveData.storageKey.value_or(""));
         try {
             std::filesystem::remove_all(
                 base::utils::getSimplayerDataDir()
@@ -280,7 +280,7 @@ base::OperateResult CFSPManager::spDelete(Player* player, std::string const& spn
             return base::OperateResult::swing("manager.fail.notEmpty"_tr(spname));
         ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues("cfspSplist", {spname});
         ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues("cfspOfflineSp", {spname});
-        simulated_player::driver::purgeStorage(it->second->mSaveData.storageKey.value_or(""));
+        simulated_player::driver::current().purgeStorage(it->second->mSaveData.storageKey.value_or(""));
         try {
             std::filesystem::remove_all(
                 base::utils::getSimplayerDataDir()

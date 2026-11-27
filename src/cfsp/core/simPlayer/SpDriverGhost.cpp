@@ -1,4 +1,4 @@
-#include "SpDriver.h"
+#include "SpDriverGhost.h"
 
 #include "cfsp/ghost/GhostActions.h"
 #include "cfsp/ghost/GhostManager.h"
@@ -13,9 +13,6 @@
 
 #include <utility>
 
-// Driver used by both builds: fake players are real ServerPlayers behind a fake client.
-// On a client build this only does anything inside a single-player world, where the
-// integrated server provides the login flow (see cfsp/ghost).
 namespace coral_fans::cfsp::simulated_player::driver {
 
 namespace {
@@ -36,94 +33,100 @@ void withSessionVoid(ServerPlayer& player, Fn&& fn) {
 
 } // namespace
 
+void GhostDriver::init() { ghosts().init(); }
+
+void GhostDriver::shutdown() { ghosts().shutdown(); }
+
+void GhostDriver::forgetPlayers() { ghosts().forgetSessions(); }
+
 // The server assigns a real player's unique id itself, so uniqueId cannot be forced
 // here; the id stays stable across sessions through the player's own save data.
-bool login(std::string const& name, std::string const& xuid, std::optional<int64>, LoginCallbacks callbacks) {
+bool GhostDriver::login(std::string const& name, std::string const& xuid, std::optional<int64>, LoginCallbacks callbacks) {
     return ghosts().login(name, xuid, std::move(callbacks.onReady), std::move(callbacks.onLost)).ok;
 }
 
-void logout(std::string const& name, ServerPlayer*) { ghosts().logout(name); }
+void GhostDriver::logout(std::string const& name, ServerPlayer*) { ghosts().logout(name); }
 
-bool isSimPlayer(Player const& player) { return ghosts().isGhost(player); }
+bool GhostDriver::isSimPlayer(Player const& player) const { return ghosts().isGhost(player); }
 
 // A real player is saved into the world by the server itself, next to our own copy.
-std::string storageKey(ServerPlayer& player) {
+std::string GhostDriver::storageKey(ServerPlayer& player) const {
     return PlayerDataSystem::serverKey(player.getLevel().getLevelStorage(), player);
 }
 
-void purgeStorage(std::string const& key) {
+void GhostDriver::purgeStorage(std::string const& key) {
     if (key.empty()) return;
     if (auto level = ll::service::getLevel()) level->getLevelStorage().deleteData(key, DBHelpers::Category::Player);
 }
 
-bool attack(ServerPlayer& player) {
+bool GhostDriver::attack(ServerPlayer& player) {
     return withSession(player, [&](auto& s) { return ghost::actions::attack(s, player); });
 }
 
-bool interact(ServerPlayer& player) {
+bool GhostDriver::interact(ServerPlayer& player) {
     return withSession(player, [&](auto& s) { return ghost::actions::interact(s, player); });
 }
 
-bool jump(ServerPlayer& player) {
+bool GhostDriver::jump(ServerPlayer& player) {
     return withSession(player, [&](auto& s) { return ghost::actions::jump(s, player); });
 }
 
-bool useItem(ServerPlayer& player) {
+bool GhostDriver::useItem(ServerPlayer& player) {
     return withSession(player, [&](auto& s) { return ghost::actions::useItem(s, player); });
 }
 
-void stopUsingItem(ServerPlayer& player) { ghost::actions::stopUsingItem(player); }
+void GhostDriver::stopUsingItem(ServerPlayer& player) { ghost::actions::stopUsingItem(player); }
 
-bool destroyBlock(ServerPlayer& player, BlockPos const& pos, uchar face) {
+bool GhostDriver::destroyBlock(ServerPlayer& player, BlockPos const& pos, uchar face) {
     return withSession(player, [&](auto& s) { return ghost::actions::destroyBlock(s, player, pos, face); });
 }
 
-void stopDestroyingBlock(ServerPlayer& player) {
+void GhostDriver::stopDestroyingBlock(ServerPlayer& player) {
     withSessionVoid(player, [&](auto& s) { ghost::actions::stopDestroyingBlock(s, player); });
 }
 
 // Interactions are one-shot calls here; there is nothing left running to stop.
-void stopInteracting(ServerPlayer&) {}
+void GhostDriver::stopInteracting(ServerPlayer&) {}
 
-void stopMoving(ServerPlayer& player) {
+void GhostDriver::stopMoving(ServerPlayer& player) {
     withSessionVoid(player, [](auto& s) { s.control.stopMoving(); });
 }
 
-void lookAt(ServerPlayer& player, Vec3 const& pos) {
+void GhostDriver::lookAt(ServerPlayer& player, Vec3 const& pos) {
     withSessionVoid(player, [&](auto& s) { ghost::actions::lookAt(s, player, pos); });
 }
 
 // A player cannot walk up a full block, so even a plain move hops over what is in
 // its way.
-void moveTo(ServerPlayer& player, Vec3 const& pos, float speed) {
+void GhostDriver::moveTo(ServerPlayer& player, Vec3 const& pos, float speed) {
     withSessionVoid(player, [&](auto& s) { ghost::actions::moveTo(s, player, pos, speed, true); });
 }
 
-void navTo(ServerPlayer& player, Vec3 const& pos, float speed) {
+void GhostDriver::navTo(ServerPlayer& player, Vec3 const& pos, float speed) {
     withSessionVoid(player, [&](auto& s) { ghost::actions::navigateTo(s, player, pos, speed); });
 }
 
-void chat(ServerPlayer& player, std::string const& message) {
+void GhostDriver::chat(ServerPlayer& player, std::string const& message) {
     withSessionVoid(player, [&](auto& s) { ghost::actions::chat(s, player, message); });
 }
 
-bool respawn(ServerPlayer& player) {
+bool GhostDriver::respawn(ServerPlayer& player) {
     return withSession(player, [&](auto& s) { return ghost::actions::respawn(s, player); });
 }
 
-void setSneaking(ServerPlayer& player, bool value) {
+void GhostDriver::setSneaking(ServerPlayer& player, bool value) {
     withSessionVoid(player, [&](auto& s) { ghost::actions::setSneaking(s, player, value); });
 }
 
-void setSprinting(ServerPlayer& player, bool value) {
+void GhostDriver::setSprinting(ServerPlayer& player, bool value) {
     withSessionVoid(player, [&](auto& s) { ghost::actions::setSprinting(s, player, value); });
 }
 
-void setSwimming(ServerPlayer& player, bool value) {
+void GhostDriver::setSwimming(ServerPlayer& player, bool value) {
     withSessionVoid(player, [&](auto& s) { ghost::actions::setSwimming(s, player, value); });
 }
 
-void setFlying(ServerPlayer& player, bool value) {
+void GhostDriver::setFlying(ServerPlayer& player, bool value) {
     withSessionVoid(player, [&](auto& s) { ghost::actions::setFlying(s, player, value); });
 }
 

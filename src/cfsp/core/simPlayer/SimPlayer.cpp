@@ -29,13 +29,13 @@ base::OperateResult SimPlayer::stop() {
     if (!this->mSimPlayer) [[unlikely]]
         return base::OperateResult::error("manager.error.loseSimplayer"_tr());
 
-    driver::stopDestroyingBlock(*this->mSimPlayer);
+    driver::current().stopDestroyingBlock(*this->mSimPlayer);
 
-    driver::stopInteracting(*this->mSimPlayer);
+    driver::current().stopInteracting(*this->mSimPlayer);
 
-    driver::stopMoving(*this->mSimPlayer);
+    driver::current().stopMoving(*this->mSimPlayer);
 
-    driver::stopUsingItem(*this->mSimPlayer);
+    driver::current().stopUsingItem(*this->mSimPlayer);
 
     return base::OperateResult::success("manager.success.operate"_tr());
 }
@@ -63,7 +63,7 @@ std::shared_ptr<SimPlayer> SimPlayer::create(
     // The player may only show up a few ticks from now, so remember where it should
     // go and which way it should face.
     Vec3 lookDir = player ? Vec3::directionFromRotation(player->getRotation()) : Vec3{0, 0, 0};
-    bool started = driver::login(
+    bool started = driver::current().login(
         spname,
         xuid,
         std::nullopt,
@@ -90,7 +90,7 @@ void SimPlayer::onCreated(
 ) {
     this->mSimPlayer           = &sp;
     this->mConnecting          = false;
-    this->mSaveData.storageKey = driver::storageKey(sp);
+    if (auto key = driver::current().storageKey(sp); !key.empty()) this->mSaveData.storageKey = key;
     this->mDataDir             = base::utils::getSimplayerDataDir();
 
     sp.teleport(pos, dim);
@@ -111,7 +111,7 @@ base::OperateResult SimPlayer::spawn(std::optional<const Player*> player) {
 
     this->forgetUnlockedIdentity();
     this->mConnecting = true;
-    bool started      = driver::login(
+    bool started      = driver::current().login(
         this->mSaveData.name,
         this->mSaveData.xuid,
         this->mSaveData.uniqueId,
@@ -141,7 +141,9 @@ void SimPlayer::onSpawned(ServerPlayer& sp) {
     this->mSimPlayer  = &sp;
     this->mConnecting = false;
     this->mDataDir    = base::utils::getSimplayerDataDir();
-    if (auto key = driver::storageKey(sp); key != this->mSaveData.storageKey) {
+    // A driver that keeps no server-side copy reports "", which must not wipe the key a
+    // previous protocol-mode session left: forgetUnlockedIdentity() still needs it.
+    if (auto key = driver::current().storageKey(sp); !key.empty() && key != this->mSaveData.storageKey) {
         this->mSaveData.storageKey = key;
         this->mShouldSave          = true;
     }
@@ -186,12 +188,12 @@ base::OperateResult SimPlayer::despawn() {
 // to go; everything else about the player is restored from our save.
 void SimPlayer::forgetUnlockedIdentity() {
     if (this->mSaveData.uniqueId.has_value()) return;
-    driver::purgeStorage(this->mSaveData.storageKey.value_or(""));
+    driver::current().purgeStorage(this->mSaveData.storageKey.value_or(""));
 }
 
 void SimPlayer::disconnect() {
     if (!this->mSimPlayer && !this->mConnecting) return;
-    driver::logout(this->mSaveData.name, this->mSimPlayer);
+    driver::current().logout(this->mSaveData.name, this->mSimPlayer);
     this->mSimPlayer  = nullptr;
     this->mConnecting = false;
 }
@@ -224,7 +226,7 @@ base::OperateResult SimPlayer::respawn() {
     if (!this->mSimPlayer) [[unlikely]]
         return base::OperateResult::error("manager.error.loseSimplayer"_tr());
     if (this->mSimPlayer->isAlive()) return base::OperateResult::error("manager.fail.spIsAlive"_tr());
-    if (!driver::respawn(*this->mSimPlayer)) return base::OperateResult::error("manager.fail.failToRespawn"_tr());
+    if (!driver::current().respawn(*this->mSimPlayer)) return base::OperateResult::error("manager.fail.failToRespawn"_tr());
     return base::OperateResult::success("manager.success.operate"_tr());
 }
 
@@ -258,7 +260,7 @@ base::OperateResult SimPlayer::lookAt(Vec3 const& pos) {
     if (this->mSimPlayer->isDead()) [[unlikely]]
         return base::OperateResult::error("manager.fail.spIsDead"_tr());
     this->mSaveData.lookAtOffSet = pos - this->mSimPlayer->getHeadPos();
-    driver::lookAt(*this->mSimPlayer, pos);
+    driver::current().lookAt(*this->mSimPlayer, pos);
     return base::OperateResult::success("manager.success.operate"_tr());
 }
 

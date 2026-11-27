@@ -610,7 +610,7 @@ void ComandManager::registerGroupComand() {
             if (!player.has_value()) return output.error("command.fail.illegalOrigin"_tr());
             auto targetPlayer = self["targetPlayer"].get<ll::command::ParamKind::Player>().results(origin);
             if (targetPlayer.size() > 1) output.error("manager.fail.targetNotSingle"_tr());
-            if (simulated_player::driver::isSimPlayer(*targetPlayer.data->data()[0]))
+            if (simulated_player::driver::current().isSimPlayer(*targetPlayer.data->data()[0]))
                 return output.error("manager.fail.targetIsSp"_tr());
             auto index = self["permType"].get<ll::command::ParamKind::Enum>().index;
             uint perm;

@@ -9,9 +9,16 @@ namespace coral_fans::cfsp::config {
 
 enum class ListType : int { disabled, blacklist, whitelist };
 
+// How fake players are put into the world. Read once when the mod loads.
+//  - protocol:  a real ServerPlayer behind a fake client connection (see cfsp/ghost).
+//               Behaves like a human player towards scripts and other mods.
+//  - simulated: Mojang's gametest SimulatedPlayer.
+enum class SimPlayerImpl : int { protocol, simulated };
+
 struct Config {
-    int                             version             = 3;
+    int                             version             = 4;
     bool                            enabled             = true;
+    SimPlayerImpl                   simPlayerImpl       = SimPlayerImpl::protocol;
     CommandPermissionLevel          permission          = CommandPermissionLevel::Any;
     std::string                     namePrefix          = "SIM-";
     std::string                     namePostfix         = "";

@@ -43,9 +43,6 @@ target("CFSP") -- Change this to your mod name.
     add_defines("CF_VERSION=\"$(shell git describe --tags --abbrev=0 --always)\"")
     add_defines("COMMITID=\"$(shell git rev-parse HEAD)\"")
     add_files("src/**.cpp")
-    -- Kept in the tree for a possible future SimulatedPlayer mode, but not built: both
-    -- platform builds use the ghost driver now. Delete this line to bring it back.
-    remove_files("src/cfsp/core/simPlayer/SpDriverSim.cpp")
     add_headerfiles("src/(cfsp/**.h)")
     add_includedirs("src")
     add_packages(

@@ -2,7 +2,7 @@
 #include "cfsp/core/fix/CFSPFixManager.h"
 #include "cfsp/core/helper/CFSPHelperManager.h"
 #include "cfsp/core/manager/CFSPManager.h"
-#include "cfsp/ghost/GhostManager.h"
+#include "cfsp/core/simPlayer/SpDriver.h"
 #include "ll/api/event/EventBus.h"
 #include "ll/api/event/command/ServerCommandRegisterEvent.h"
 #include "ll/api/event/server/ServerStartedEvent.h"
@@ -23,11 +23,18 @@ CFSP& CFSP::getInstance() {
 }
 
 bool CFSP::load() {
-    if (!manager::CFSPManager::getInstance().init()) return false;
-    // Fake players are real ServerPlayers behind a fake client; this drives them. On a
-    // client build that only ever does something inside a single-player world, where
-    // the integrated server provides the login flow and the network to feed it.
-    ghost::GhostManager::getInstance().init();
+    auto& spManager = manager::CFSPManager::getInstance();
+    if (!spManager.init()) return false;
+    // How fake players get into the world is picked once, here (config.simPlayerImpl,
+    // see SpDriver.h). On a client build either way only does something inside a
+    // single-player world, where the integrated server is.
+    auto& driver = simulated_player::driver::select(spManager.getConfig().simPlayerImpl);
+    driver.init();
+    if (driver.type() == config::SimPlayerImpl::simulated)
+        getSelf().getLogger().warn(
+            "simPlayerImpl is \"simulated\": fake players are Mojang SimulatedPlayers. Behavior packs that iterate "
+            "world.getPlayers() may crash the server with them; switch to \"protocol\" if that happens."
+        );
     // load i18n
     if (!ll::i18n::getInstance().load(getSelf().getLangDir())) getSelf().getLogger().error("Failed to load I18n");
 
@@ -78,14 +85,14 @@ bool CFSP::disable() {
     auto& manager = manager::CFSPManager::getInstance();
     manager.onServerStopping();
     manager.clear();
-    ghost::GhostManager::getInstance().forgetSessions();
+    simulated_player::driver::current().forgetPlayers();
 #endif
     return true;
 }
 
 bool CFSP::unload() {
     manager::CFSPManager::getInstance().unload();
-    ghost::GhostManager::getInstance().shutdown();
+    simulated_player::driver::current().shutdown();
     helper::CFSPHelperManager::getInstance().SimPlayerHelperHook(false);
     fix::CFSPFixManager::getInstance().cfspBugFixHook(false);
     return true;

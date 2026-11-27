@@ -18,7 +18,7 @@ void GroupPermPage::sendTo(Player& player) {
     auto                                             level = ll::service::getLevel();
     if (level.has_value())
         level->forEachPlayer([&splist, pname = player.mName.get()](Player& player) {
-            if (!simulated_player::driver::isSimPlayer(player) && pname != player.mName.get())
+            if (!simulated_player::driver::current().isSimPlayer(player) && pname != player.mName.get())
                 splist.emplace_back(std::make_pair(player.mName, player.getUuid().asString()));
             return true;
         });

@@ -1,6 +1,4 @@
-#ifdef LL_PLAT_C
-
-#include "SpDriver.h"
+#include "SpDriverSim.h"
 
 #include "cfsp/core/fix/CFSPFixManager.h"
 
@@ -13,7 +11,6 @@
 
 #include <utility>
 
-// Client-build driver: fake players are vanilla SimulatedPlayers, exactly as before.
 namespace coral_fans::cfsp::simulated_player::driver {
 
 namespace {
@@ -23,7 +20,7 @@ SimulatedPlayer& sim(ServerPlayer& player) { return static_cast<SimulatedPlayer&
 
 } // namespace
 
-bool login(std::string const& name, std::string const& xuid, std::optional<int64> uniqueId, LoginCallbacks callbacks) {
+bool SimulatedDriver::login(std::string const& name, std::string const& xuid, std::optional<int64> uniqueId, LoginCallbacks callbacks) {
     auto mc = ll::service::getMinecraft();
     if (!mc) return false;
     auto handler = mc->getServerNetworkHandler();
@@ -48,7 +45,7 @@ bool login(std::string const& name, std::string const& xuid, std::optional<int64
     return true;
 }
 
-void logout(std::string const&, ServerPlayer* player) {
+void SimulatedDriver::logout(std::string const&, ServerPlayer* player) {
     if (!player) return;
     auto& simPlayer = sim(*player);
     simPlayer.disconnect();
@@ -56,57 +53,56 @@ void logout(std::string const&, ServerPlayer* player) {
     simPlayer.setGameTestHelper(nullptr);
 }
 
-bool isSimPlayer(Player const& player) { return player.isSimulatedPlayer(); }
+bool SimulatedDriver::isSimPlayer(Player const& player) const { return player.isSimulatedPlayer(); }
 
 // Nothing but our own save is used for a SimulatedPlayer.
-std::string storageKey(ServerPlayer&) { return {}; }
+std::string SimulatedDriver::storageKey(ServerPlayer&) const { return {}; }
 
-void purgeStorage(std::string const&) {}
+void SimulatedDriver::purgeStorage(std::string const&) {}
 
-bool attack(ServerPlayer& player) { return sim(player).simulateAttack(); }
+bool SimulatedDriver::attack(ServerPlayer& player) { return sim(player).simulateAttack(); }
 
-bool interact(ServerPlayer& player) { return sim(player).simulateInteract(); }
+bool SimulatedDriver::interact(ServerPlayer& player) { return sim(player).simulateInteract(); }
 
-bool jump(ServerPlayer& player) { return sim(player).simulateJump(); }
+bool SimulatedDriver::jump(ServerPlayer& player) { return sim(player).simulateJump(); }
 
-bool useItem(ServerPlayer& player) { return sim(player).simulateUseItem(); }
+bool SimulatedDriver::useItem(ServerPlayer& player) { return sim(player).simulateUseItem(); }
 
-void stopUsingItem(ServerPlayer& player) { sim(player).simulateStopUsingItem(); }
+void SimulatedDriver::stopUsingItem(ServerPlayer& player) { sim(player).simulateStopUsingItem(); }
 
-bool destroyBlock(ServerPlayer& player, BlockPos const& pos, uchar face) {
+bool SimulatedDriver::destroyBlock(ServerPlayer& player, BlockPos const& pos, uchar face) {
     return sim(player).simulateDestroyBlock(pos, static_cast<ScriptModuleMinecraft::ScriptFacing>(face));
 }
 
-void stopDestroyingBlock(ServerPlayer& player) { sim(player).simulateStopDestroyingBlock(); }
+void SimulatedDriver::stopDestroyingBlock(ServerPlayer& player) { sim(player).simulateStopDestroyingBlock(); }
 
-void stopInteracting(ServerPlayer& player) { sim(player).simulateStopInteracting(); }
+void SimulatedDriver::stopInteracting(ServerPlayer& player) { sim(player).simulateStopInteracting(); }
 
-void stopMoving(ServerPlayer& player) { sim(player).simulateStopMoving(); }
+void SimulatedDriver::stopMoving(ServerPlayer& player) { sim(player).simulateStopMoving(); }
 
-void lookAt(ServerPlayer& player, Vec3 const& pos) { sim(player).simulateLookAt(pos, sim::LookDuration::Instant); }
+void SimulatedDriver::lookAt(ServerPlayer& player, Vec3 const& pos) { sim(player).simulateLookAt(pos, sim::LookDuration::Instant); }
 
-void moveTo(ServerPlayer& player, Vec3 const& pos, float speed) {
+void SimulatedDriver::moveTo(ServerPlayer& player, Vec3 const& pos, float speed) {
     sim(player).simulateMoveToLocation(pos, speed, false);
 }
 
-void navTo(ServerPlayer& player, Vec3 const& pos, float speed) { sim(player).simulateNavigateToLocation(pos, speed); }
+void SimulatedDriver::navTo(ServerPlayer& player, Vec3 const& pos, float speed) { sim(player).simulateNavigateToLocation(pos, speed); }
 
-void chat(ServerPlayer& player, std::string const& message) { sim(player).simulateChat(message); }
+void SimulatedDriver::chat(ServerPlayer& player, std::string const& message) { sim(player).simulateChat(message); }
 
-bool respawn(ServerPlayer& player) { return sim(player).simulateRespawn(); }
+bool SimulatedDriver::respawn(ServerPlayer& player) { return sim(player).simulateRespawn(); }
 
-void setSneaking(ServerPlayer& player, bool value) { player.setSneaking(value); }
+void SimulatedDriver::setSneaking(ServerPlayer& player, bool value) { player.setSneaking(value); }
 
-void setSprinting(ServerPlayer& player, bool value) { player.setSprinting(value); }
+void SimulatedDriver::setSprinting(ServerPlayer& player, bool value) { player.setSprinting(value); }
 
-void setSwimming(ServerPlayer& player, bool value) {
+void SimulatedDriver::setSwimming(ServerPlayer& player, bool value) {
     if (value) player.startSwimming();
     else player.stopSwimming();
 }
 
 // The ability change alone is enough for a SimulatedPlayer.
-void setFlying(ServerPlayer&, bool) {}
+void SimulatedDriver::setFlying(ServerPlayer&, bool) {}
 
 } // namespace coral_fans::cfsp::simulated_player::driver
 
-#endif // LL_PLAT_C

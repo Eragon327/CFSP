@@ -34,7 +34,7 @@ LL_TYPE_INSTANCE_HOOK(
         return origin(container, slot, oldItem, newItem, forceBalanced);
 #endif
     origin(container, slot, oldItem, newItem, forceBalanced);
-    if (simulated_player::driver::isSimPlayer(*this)) {
+    if (simulated_player::driver::current().isSimPlayer(*this)) {
         if (slot == 0 && oldItem.getTypeName() != newItem.getTypeName()) {
             MobEquipmentPacketPayload payload(this->getRuntimeID(), newItem, 0, 0, mInventory->mSelectedContainerId);
             MobEquipmentPacket(payload).sendToClients(); // fix::更新主手
@@ -56,7 +56,7 @@ LL_TYPE_INSTANCE_HOOK(
         || std::this_thread::get_id() != ll::service::getServerInstance()->mServerInstanceThread->get_id())
         return origin(item);
 #endif
-    if (simulated_player::driver::isSimPlayer(*this)) {
+    if (simulated_player::driver::current().isSimPlayer(*this)) {
         if (this->getOffhandSlot().getTypeName() != item.getTypeName()) {
             MobEquipmentPacketPayload payload(this->getRuntimeID(), item, 1, 0, ContainerID::Offhand);
             MobEquipmentPacket(payload).sendToClients(); // fix::更新副手

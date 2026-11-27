@@ -27,7 +27,7 @@ base::OperateResult SimPlayer::attack(int times, int interval) {
     this->mTaskid = base::Schedule::getInstance().getSchedule()->add(interval, [times, this](unsigned long long t) {
         if (!this->mSimPlayer) [[unlikely]]
             return false;
-        driver::attack(*this->mSimPlayer);
+        driver::current().attack(*this->mSimPlayer);
         return !times || t < (unsigned long long)times - 1;
     });
     return base::OperateResult::success("manager.success.operate"_tr());
@@ -79,7 +79,7 @@ base::OperateResult SimPlayer::interact(int times, int interval) {
     this->mTaskid = base::Schedule::getInstance().getSchedule()->add(interval, [times, this](unsigned long long t) {
         if (!this->mSimPlayer) [[unlikely]]
             return false;
-        driver::interact(*this->mSimPlayer);
+        driver::current().interact(*this->mSimPlayer);
         return !times || t < (unsigned long long)times - 1;
     });
     return base::OperateResult::success("manager.success.operate"_tr());
@@ -97,7 +97,7 @@ base::OperateResult SimPlayer::jump(int times, int interval) {
     this->mTaskid = base::Schedule::getInstance().getSchedule()->add(interval, [times, this](unsigned long long t) {
         if (!this->mSimPlayer) [[unlikely]]
             return false;
-        driver::jump(*this->mSimPlayer);
+        driver::current().jump(*this->mSimPlayer);
         return !times || t < (unsigned long long)times - 1;
     });
     return base::OperateResult::success("manager.success.operate"_tr());
@@ -118,7 +118,7 @@ base::OperateResult SimPlayer::use(int _long, int times, int interval) {
             if (!this->mSimPlayer) [[unlikely]]
                 return false;
             if (!_long && t >= (unsigned long long)interval) {
-                driver::useItem(*this->mSimPlayer);
+                driver::current().useItem(*this->mSimPlayer);
                 return true;
             }
             auto index = t % (interval + _long);
@@ -127,7 +127,7 @@ base::OperateResult SimPlayer::use(int _long, int times, int interval) {
                 this->mSimPlayer->releaseUsingItem();
                 return (t / (interval + _long)) != (unsigned long long)times;
             }
-            if (index >= (unsigned long long)interval) driver::useItem(*this->mSimPlayer);
+            if (index >= (unsigned long long)interval) driver::current().useItem(*this->mSimPlayer);
             return true;
         });
     return base::OperateResult::success("manager.success.operate"_tr());
@@ -154,13 +154,13 @@ base::OperateResult SimPlayer::destroy(int _long, int times, int interval) {
                             return !block.mBlockType->mMaterial.mLiquid;
                         });
                 if (hit.mType == HitResultType::Tile)
-                    driver::destroyBlock(*this->mSimPlayer, hit.mBlock, static_cast<uchar>(hit.mFacing));
-                else if (this->mSimPlayer->mDestroyingBlock) driver::stopDestroyingBlock(*this->mSimPlayer);
+                    driver::current().destroyBlock(*this->mSimPlayer, hit.mBlock, static_cast<uchar>(hit.mFacing));
+                else if (this->mSimPlayer->mDestroyingBlock) driver::current().stopDestroyingBlock(*this->mSimPlayer);
                 return true;
             }
             auto index = t % (interval + _long);
             if (t && !index) {
-                driver::stopDestroyingBlock(*this->mSimPlayer);
+                driver::current().stopDestroyingBlock(*this->mSimPlayer);
                 return t / (interval + _long) != (unsigned long long)times;
             }
             if (index >= (unsigned long long)interval) {
@@ -170,8 +170,8 @@ base::OperateResult SimPlayer::destroy(int _long, int times, int interval) {
                             return !block.mBlockType->mMaterial.mLiquid;
                         });
                 if (hit.mType == HitResultType::Tile)
-                    driver::destroyBlock(*this->mSimPlayer, hit.mBlock, static_cast<uchar>(hit.mFacing));
-                else if (this->mSimPlayer->mDestroyingBlock) driver::stopDestroyingBlock(*this->mSimPlayer);
+                    driver::current().destroyBlock(*this->mSimPlayer, hit.mBlock, static_cast<uchar>(hit.mFacing));
+                else if (this->mSimPlayer->mDestroyingBlock) driver::current().stopDestroyingBlock(*this->mSimPlayer);
             }
             return true;
         });

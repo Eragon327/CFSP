@@ -14,8 +14,7 @@ public:
 
 class CFSPFixManager {
 public:
-    // Only used by the SimulatedPlayer driver (SpDriverSim.cpp); it is kept in the tree
-    // but not built, see xmake.lua.
+    // Set by the SimulatedPlayer driver (SpDriverSim.cpp) while it creates a player.
     bool createSpMutex = false;
 
 public:
