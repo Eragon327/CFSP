@@ -91,6 +91,7 @@ void SimPlayer::onCreated(
     this->mSimPlayer           = &sp;
     this->mConnecting          = false;
     this->mSaveData.storageKey = driver::storageKey(sp);
+    this->mDataDir             = base::utils::getSimplayerDataDir();
 
     sp.teleport(pos, dim);
     sp.mPlayerRespawnPoint->mPlayerPosition = pos;
@@ -139,6 +140,7 @@ base::OperateResult SimPlayer::spawn(std::optional<const Player*> player) {
 void SimPlayer::onSpawned(ServerPlayer& sp) {
     this->mSimPlayer  = &sp;
     this->mConnecting = false;
+    this->mDataDir    = base::utils::getSimplayerDataDir();
     if (auto key = driver::storageKey(sp); key != this->mSaveData.storageKey) {
         this->mSaveData.storageKey = key;
         this->mShouldSave          = true;
@@ -208,10 +210,11 @@ void SimPlayer::onLost(ServerPlayer* player) {
 void SimPlayer::onServerStopping() {
     if (base::Schedule::getInstance().getSchedule()->isRunning(this->mTaskid)) this->cancelTask();
     if (base::Schedule::getInstance().getSchedule()->isRunning(this->mScriptid)) this->cancelScript();
-    // Nothing is saved here: this runs after the server's main loop has ended, when
-    // the player can no longer be serialized. The stop command and the server's own
-    // player save have already written our copy. isOnline stays set, so the player
-    // joins again on the next start.
+    // The player itself can no longer be serialized here (the main loop has ended and
+    // Player::save crashes), but data.json can still be written: it is what makes the
+    // fake player come back on the next start, with its identity and storage key. Its
+    // inventory / position live in the server's own copy of the player.
+    this->saveData(false);
     this->mSimPlayer  = nullptr;
     this->mConnecting = false;
 }

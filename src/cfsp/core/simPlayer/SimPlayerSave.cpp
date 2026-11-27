@@ -8,19 +8,36 @@
 
 namespace coral_fans::cfsp::simulated_player {
 
-bool SimPlayer::save() {
-    auto dataDir = base::utils::getSimplayerDataDir();
-    if (this->mSimPlayer && this->mSaveData.mGameType != this->mSimPlayer->getPlayerGameType()) {
+// Writes data.json only, which never touches the player, so it is safe even after the
+// server's main loop has ended. readGameType is off there because reading anything off
+// a player that is being torn down is not worth the risk.
+// Where this player's data.json / nbt live. mDataDir is pinned when the player comes
+// online, so that a save while the world is closing still reaches that world.
+std::filesystem::path SimPlayer::dataDir() const {
+    if (!this->mDataDir.empty()) return this->mDataDir;
+    return base::utils::getSimplayerDataDir();
+}
+
+bool SimPlayer::saveData(bool readGameType) {
+    auto dataDir = this->dataDir();
+    if (readGameType && this->mSimPlayer && this->mSaveData.mGameType != this->mSimPlayer->getPlayerGameType()) {
         this->mSaveData.mGameType = this->mSimPlayer->getPlayerGameType();
         this->mShouldSave         = true;
     }
-    if (this->mShouldSave) {
-        if (ll::config::saveConfig(
-                this->mSaveData,
-                dataDir / reinterpret_cast<const char8_t*>(this->mSaveData.name.c_str()) / "data.json"
-            )) [[likely]]
-            this->mShouldSave = false;
-    }
+    if (!this->mShouldSave) [[likely]]
+        return true;
+    if (ll::config::saveConfig(
+            this->mSaveData,
+            dataDir / reinterpret_cast<const char8_t*>(this->mSaveData.name.c_str()) / "data.json"
+        )) [[likely]]
+        this->mShouldSave = false;
+    return !this->mShouldSave;
+}
+
+bool SimPlayer::save() {
+    auto dataDir = this->dataDir();
+    if (!this->saveData()) [[unlikely]]
+        return false;
     if (!this->mSimPlayer) [[unlikely]]
         return false;
     auto tag = std::make_unique<CompoundTag>();
@@ -42,7 +59,7 @@ bool SimPlayer::save() {
 bool SimPlayer::loadSpNbt() {
     if (!this->mSimPlayer) [[unlikely]]
         return false;
-    auto dataDir = base::utils::getSimplayerDataDir();
+    auto dataDir = this->dataDir();
     auto path = dataDir / reinterpret_cast<const char8_t*>(this->mSaveData.name.c_str()) / "nbt";
     if (!std::filesystem::exists(path)) [[unlikely]]
         return false;
@@ -70,7 +87,7 @@ bool SimPlayer::loadSpNbt() {
 }
 
 bool SimPlayer::checkInvEmptyForOfflineCFSP() {
-    auto dataDir = base::utils::getSimplayerDataDir();
+    auto dataDir = this->dataDir();
     auto path = dataDir / reinterpret_cast<const char8_t*>(this->mSaveData.name.c_str()) / "nbt";
     if (!std::filesystem::exists(path)) [[unlikely]]
         return false;

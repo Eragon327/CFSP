@@ -69,7 +69,19 @@ bool CFSP::enable() {
     return true;
 }
 
-bool CFSP::disable() { return true; }
+bool CFSP::disable() {
+#ifdef LL_PLAT_C
+    // Leaving a single-player world disables the mod (it is only unloaded when the game
+    // exits). Persist the fake players' bookkeeping and let go of them here too, so the
+    // next world does not start from stale state even if no stopping event arrives.
+    // Nothing that touches a player is allowed: the world is going away.
+    auto& manager = manager::CFSPManager::getInstance();
+    manager.onServerStopping();
+    manager.clear();
+    ghost::GhostManager::getInstance().forgetSessions();
+#endif
+    return true;
+}
 
 bool CFSP::unload() {
     manager::CFSPManager::getInstance().unload();

@@ -46,6 +46,11 @@ public:
     // Drops the local session bookkeeping (does not kick players; used on shutdown).
     void shutdown();
 
+    // Forgets every session without touching the players. Used when a client leaves a
+    // single-player world: the world and its players are going away, and the mod is
+    // disabled rather than unloaded, so the hooks stay installed for the next world.
+    void forgetSessions();
+
     // Submits the login. Empty name/xuid pick a generated unique identity.
     // onReady fires once the player is fully loaded. onLost fires if the server
     // drops the ghost on its own; its argument is the player while that is still

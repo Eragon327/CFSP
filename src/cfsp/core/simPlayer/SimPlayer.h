@@ -7,6 +7,7 @@
 #include "cfsp/core/simPlayer/SpDriver.h"
 #include "mc/deps/core/math/Vec3.h"
 #include "mc/server/ServerPlayer.h"
+#include <filesystem>
 #include <memory>
 #include <optional>
 
@@ -22,12 +23,18 @@ public:
     unsigned long long mTaskid     = 0;
     unsigned long long mScriptid   = 0;
     bool               mShouldSave = true;
+    // Pinned when the player comes online; empty means "the current world's directory".
+    // A client build keeps this per world, so a save while a world closes must not be
+    // redirected by a level that is already gone.
+    std::filesystem::path mDataDir;
 
 public:
     SimPlayer(SimPlayerSaveData saveData, ServerPlayer* sp = nullptr);
 
 public:
     bool save();
+    // Only data.json. Safe after the main loop has ended; save() is not.
+    bool saveData(bool readGameType = true);
     bool loadSpNbt();
     // Takes the player out of the world without saving anything.
     void disconnect();
@@ -38,6 +45,7 @@ public:
     void onServerStopping();
 
 private:
+    std::filesystem::path dataDir() const;
     void forgetUnlockedIdentity();
     void onCreated(ServerPlayer& sp, Vec3 const& pos, DimensionType dim, bool lockUniqueId, Vec3 const& lookDir);
     void onSpawned(ServerPlayer& sp);

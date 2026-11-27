@@ -566,6 +566,11 @@ void GhostManager::shutdown() {
     }
 }
 
+void GhostManager::forgetSessions() {
+    mSessions.clear();
+    mStopping = true;
+}
+
 std::shared_ptr<GhostSession> GhostManager::find(std::string const& name) const {
     for (auto const& s : mSessions)
         if (s->name == name) return s;
