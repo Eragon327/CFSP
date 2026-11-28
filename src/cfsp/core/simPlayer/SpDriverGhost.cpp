@@ -51,7 +51,7 @@ bool GhostDriver::isSimPlayer(Player const& player) const { return ghosts().isGh
 
 // A real player is saved into the world by the server itself, next to our own copy.
 std::string GhostDriver::storageKey(ServerPlayer& player) const {
-    return PlayerDataSystem::serverKey(player.getLevel().getLevelStorage(), player);
+    return PlayerDataSystem::playerKey(player.mUniqueName.get());
 }
 
 void GhostDriver::purgeStorage(std::string const& key) {

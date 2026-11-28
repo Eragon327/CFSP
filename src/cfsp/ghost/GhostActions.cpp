@@ -111,7 +111,7 @@ bool interact(GhostSession&, ServerPlayer& player) {
     if (hit.mType == HitResultType::Entity) {
         auto* target = hit.getEntity();
         if (!target || target == &player) return false;
-        player.interact(*target, Vec3::ZERO());
+        player.interact(*target, Vec3::ZERO(), HandSlot::Mainhand);
         return true;
     }
     if (hit.mType == HitResultType::Tile) {
@@ -226,8 +226,8 @@ std::vector<Vec3> findPath(ServerPlayer& player, Vec3 const& target, bool& compl
     // The pathfinder returns an empty path for anything that is not a "walker", a
     // category that comes from an entity's definition and that players lack. The
     // field has no name in the headers; it sits between the door-related flags.
-    data.mUnke6b511.as<bool>() = true;
-    auto path                  = finder._findPath(data, target.x, target.y, target.z, maxDist);
+    data.mEntityIsWalker = true;
+    auto path            = finder._findPath(data, target.x, target.y, target.z, maxDist);
     if (!path || path->mCompletionType == PathCompletionType::Empty) return {};
 
     complete = path->mCompletionType == PathCompletionType::Full;

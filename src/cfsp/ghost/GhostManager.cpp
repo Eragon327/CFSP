@@ -7,16 +7,18 @@
 #include "cfsp/ghost/GhostPeer.h"
 #include "cfsp/ghost/GhostSession.h"
 
+#include "ll/api/Versions.h"
 #include "ll/api/event/EventBus.h"
 #include "ll/api/event/player/PlayerDisconnectEvent.h"
 #include "ll/api/event/server/ServerStartedEvent.h"
 #include "ll/api/event/server/ServerStoppingEvent.h"
 #include "ll/api/event/world/ServerLevelTickEvent.h"
-#include "ll/api/Versions.h"
 #include "ll/api/memory/Hook.h"
 #include "ll/api/service/Bedrock.h"
 
+
 #include "mc/common/SubClientId.h"
+#include "mc/deps/certificates/WebKey.h"
 #include "mc/deps/certificates/WebToken.h"
 #include "mc/deps/core/utility/Util.h"
 #include "mc/deps/identity/edu_common/MessToken.h"
@@ -56,6 +58,7 @@
 #include "mc/world/level/BlockSource.h"
 #include "mc/world/level/block/Block.h"
 #include "mc/world/level/material/Material.h"
+
 
 #include <algorithm>
 #include <array>
@@ -293,8 +296,7 @@ uint16_t listeningPort(NetworkSystem& network) {
 // The version of the game this mod is running in, as a client reports it at login.
 std::string gameVersion() {
     auto version = ll::getGameVersion();
-    return std::to_string(version.major) + "." + std::to_string(version.minor) + "."
-         + std::to_string(version.patch);
+    return std::to_string(version.major) + "." + std::to_string(version.minor) + "." + std::to_string(version.patch);
 }
 
 // The token is deliberately fake (no real signature); only its payload is read.
@@ -329,11 +331,10 @@ std::string makeConnectionJson(
              + R"(","xname":")" + name + R"(")";
     payload += R"(,"DeviceId":")" + session.uuid + R"(","SelfSignedId":")" + session.uuid + R"(",)"
              + R"("ClientRandomId":)" + std::to_string(std::hash<std::string>{}(session.xuid + "#random"))
-             + R"(,"PlatformOnlineId":")" + mid + R"(","DeviceOS":4,"BuildPlatform":4,)"
-             + R"("GameVersion":")" + gameVersion() + R"(","LanguageCode":"en_US",)"
-             + R"("CurrentInputMode":1,"DefaultInputMode":1,)"
-             + R"("GuiScale":0,"ServerAddress":"127.0.0.1:)" + std::to_string(serverPort)
-             + R"(","ThirdPartyName":")" + name + R"(")";
+             + R"(,"PlatformOnlineId":")" + mid + R"(","DeviceOS":4,"BuildPlatform":4,)" + R"("GameVersion":")"
+             + gameVersion() + R"(","LanguageCode":"en_US",)" + R"("CurrentInputMode":1,"DefaultInputMode":1,)"
+             + R"("GuiScale":0,"ServerAddress":"127.0.0.1:)" + std::to_string(serverPort) + R"(","ThirdPartyName":")"
+             + name + R"(")";
     // ConnectionRequest reads the skin from the token payload, not from the outer
     // authentication object.
     payload += skinJson;
@@ -341,9 +342,9 @@ std::string makeConnectionJson(
 
     unsigned char sig[96]{};
     std::string   token = b64url(reinterpret_cast<unsigned char const*>(header.data()), header.size()) + "."
-                        + b64url(reinterpret_cast<unsigned char const*>(payload.data()), payload.size()) + "."
-                        + b64url(sig, sizeof(sig));
-    tokenOut            = token;
+                      + b64url(reinterpret_cast<unsigned char const*>(payload.data()), payload.size()) + "."
+                      + b64url(sig, sizeof(sig));
+    tokenOut = token;
 
     return std::string(R"({"AuthenticationType":2,"Token":")") + token + "\"}";
 }
@@ -512,10 +513,11 @@ LL_TYPE_INSTANCE_HOOK(
     GhostPlayerListMultiHook,
     ll::memory::HookPriority::High,
     NetworkSystem,
-    &NetworkSystem::sendToMultiple,
+    &NetworkSystem::send,
     void,
-    std::vector<NetworkIdentifierWithSubId> const& ids,
-    Packet const&                                  packet
+    NetworkIdentifier const& id,
+    Packet const&            packet,
+    SubClientId              recipientSubId
 ) {
     auto& manager = coral_fans::cfsp::ghost::GhostManager::getInstance();
     if (manager.shouldDropGhostPacket(packet)) return;
@@ -523,7 +525,7 @@ LL_TYPE_INSTANCE_HOOK(
         && manager.shouldDropPlayerListAdd(static_cast<PlayerListPacket const&>(packet))) {
         return;
     }
-    origin(ids, packet);
+    origin(id, packet, recipientSubId);
 }
 
 GhostManager& GhostManager::getInstance() {
@@ -776,7 +778,7 @@ GhostManager::LoginResult GhostManager::login(
     // From here on the session is peer-owned too, so it stays alive even if the
     // login immediately starts sending packets.
     auto peer = std::make_shared<GhostPeer>(session);
-    if (!network.onNewIncomingConnection(*session->id, std::move(peer))) {
+    if (!network.onNewIncomingConnection(*session->id, std::move(peer), std::nullopt)) {
         return {false, "onNewIncomingConnection refused the fake peer"};
     }
     mSessions.push_back(session);
@@ -1079,7 +1081,7 @@ void GhostManager::sendInput(GhostSession& session, ServerPlayer& player) {
                 BlockPos ahead{
                     Vec3{feet.x + dx / dist * kObstacleReach, feet.y + kStepHeight, feet.z + dz / dist * kObstacleReach}
                 };
-                jump = player.getDimensionBlockSource().getBlock(ahead).mBlockType->mMaterial.mBlocksMotion;
+                jump = player.getDimensionBlockSource().getBlock(ahead).mBlockType->mMaterial->mBlocksMotion;
             }
             if (control.stuckTicks > kStuckTimeout) control.stopMoving();
             if (player.isInWater()) jump = true; // keep afloat
